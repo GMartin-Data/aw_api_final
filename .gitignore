@@ -189,3 +189,9 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,python
+
+# Logs
+# Ignore everything in logs
+logs/*
+# But don't ignore the .gitkeep file
+!logs/.gitkeep
