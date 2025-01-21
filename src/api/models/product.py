@@ -206,15 +206,6 @@ class ProductCreate(ProductBase):
     pass
 
 
-    """
-    For GET responses
-    - Include the DB primary key (product_id)
-    - Also show modified_date if we want to return it.
-    """
-    product_id: int
-    modified_date: datetime
-
-
 class ProductRead(ProductBase):
     """
     For GET responses
