@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session, select
 
 from src.api.models.product import Product, ProductCreate, ProductRead, ProductUpdate
@@ -9,15 +9,24 @@ from src.database.session import get_session
 
 
 # router instance for products endpoints
-router = APIRouter(prefix="/products", tags=["products"])
+router = APIRouter(
+    prefix="/products",
+    tags=["products"],
+    responses={500: {"description": "Internal Server Error"}},
+)
 
 
-@router.get("/products", response_model=list[ProductRead])
+# ⚠️ PAGINATION SHOULD BE ADDED LATER
+@router.get(
+    "/",
+    response_model=list[ProductRead],
+    responses={200: {"description": "List of products retrieved successfully"}},
+)
 async def list_products(session: Annotated[Session, Depends(get_session)]):
     """Retrieve the list of all available products."""
     statement = select(Product)
     products = session.exec(statement).all()
-    return products
+    return [ProductRead.model_validate(product) for product in products]
 
 
 @router.get(
@@ -37,14 +46,15 @@ async def list_products(session: Annotated[Session, Depends(get_session)]):
 )
 async def get_product(
     product_id: int, session: Annotated[Session, Depends(get_session)]
-):
+) -> ProductRead:
     """Retrieve a specific product by ID."""
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(
-            status_code=404, detail=f"Product with id {product_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Product with id {product_id} not found",
         )
-    return product
+    return ProductRead.model_validate(product)
 
 
 @router.post(
@@ -65,7 +75,9 @@ async def get_product(
         },
     },
 )
-async def create_product(product: ProductCreate, session: Session = Depends(...)):
+async def create_product(
+    product: ProductCreate, session: Annotated[Session, Depends(get_session)]
+) -> ProductRead:
     """Create a new product.
 
     Args:
@@ -88,12 +100,12 @@ async def create_product(product: ProductCreate, session: Session = Depends(...)
 
     if existing:
         raise HTTPException(
-            status_code=409,  # Conflict
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Product with number {product.product_number} already exists",
         )
 
-    # Set the creation date with modified_date as current timestamp
-    db_product.modified_date = datetime.now(timezone.utc)
+    # Create database model (modified_date will be set automatically)
+    db_product = Product.model_validate(product)
 
     # Add and commit the new product
     session.add(db_product)
@@ -152,7 +164,8 @@ async def update_product(
     db_product = session.get(Product, product_id)
     if not db_product:
         raise HTTPException(
-            status_code=404, detail=f"Product with id {product_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Product with id {product_id} not found",
         )
 
     # Check product_number uniqueness
@@ -165,7 +178,7 @@ async def update_product(
         ).first()
         if existing:
             raise HTTPException(
-                status_code=409,
+                status_code=status.HTTP_409_CONFLICT,
                 detail=f"Product with number {product.product_number} already exists",
             )
 
