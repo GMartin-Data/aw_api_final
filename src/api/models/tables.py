@@ -1,11 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
+from uuid import UUID
 
+from pydantic import validator
 from sqlmodel import SQLModel, Field, Relationship
-
-
-from datetime import datetime
-from sqlmodel import SQLModel, Field
 
 
 # TABLE MODELS
@@ -138,21 +136,34 @@ class Product(SQLModel, table=True):
 ## Shared base: contains user-editable fields
 ## Excludes 'modified_date' as it is NEVER set by the user but by the back-end
 class ProductBase(SQLModel):
-    name: str
-    product_number: str
-    color: str | None = None
-    standard_cost: Decimal
-    list_price: Decimal
-    size: str | None = None
-    weight: Decimal | None = None
+    name: str = Field(..., min_length=1, max_length=100)
+    product_number: str = Field(..., min_length=1, max_length=50)
+    color: str | None = Field(default=None, min_length=1, max_length=30)
+    standard_cost: Decimal = Field(..., gt=0, description="Must be strictly positive")
+    list_price: Decimal = Field(..., gt=0, description="Must be strictly positive")
+    size: str | None = Field(default=None, max_length=10)
+    weight: Decimal | None = Field(default=None, gt=0)
+    # Foreign keys
     product_category_id: int | None = None
     product_model_id: int | None = None
+    # Dates
     sell_start_date: datetime
     sell_end_date: datetime | None = None
     discontinued_date: datetime | None = None
+    # Thumbnail
     thumbnail_photo: bytes | None = None
-    thumbnail_photo_file_name: str | None = None
+    thumbnail_photo_file_name: str | None = Field(None, max_length=100)
+    # Unique identifier, stored as a string but validated as a UUID
     rowguid: str
+
+    # Custom validators
+    @validator("list_price")
+    def validate_list_price(cls, v, values):
+        """Ensure list_price > standard_cost (if provided)."""
+        standard_cost = values.get("standard_cost")
+        if standard_cost is not None and v < standard_cost:
+            raise ValueError("list price must be greater than standard_cost")
+        return v
 
 
 ## For CREATING a product with a POST (/products)
