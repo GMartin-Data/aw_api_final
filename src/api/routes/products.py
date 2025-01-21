@@ -194,3 +194,54 @@ async def update_product(
     session.refresh(db_product)
 
     return ProductRead.model_validate(db_product)
+
+
+@router.delete(
+    "/{product_id}",
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {
+            "description": "Product successfully deleted",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Product with id 123 was successfully deleted"
+                    }
+                }
+            },
+        },
+        404: {
+            "description": "Product not found",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Product with id 123 not found"}
+                }
+            },
+        },
+    },
+)
+async def delete_product(
+    product_id: int, session: Annotated[Session, Depends(get_session)]
+) -> dict:
+    """Delete a product.
+
+    Args:
+        product_id: ID of the product to delete
+        session: database session
+
+    Returns:
+        dict: confirmation message
+
+    Raises:
+        HTTPException: if product not found
+    """
+    db_product = session.get(Product, product_id)
+    if not db_product:
+        raise HTTPException(
+            status_code=404, detail=f"Product with id {product_id} not found"
+        )
+
+    session.delete(db_product)
+    session.commit()
+
+    return {"message": f"Product with id {product_id} was successfully deleted"}
