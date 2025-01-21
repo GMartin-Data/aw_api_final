@@ -193,8 +193,9 @@ if __name__ == "__main__":
                 print(f"{key}: {value}")
 
         # Add table structure inspection
-        print("\n🔎 Inspecting Product table structure:")
-        product_structure = inspect_table_structure("Product")
+        table_name = input("Which table do you want to inspect? ")
+        print(f"\n🔎 Inspecting '{table_name}' table structure:")
+        product_structure = inspect_table_structure(table_name)
         for column, details in product_structure.items():
             print(f"\n{column}:")
             for attr, value in details.items():
