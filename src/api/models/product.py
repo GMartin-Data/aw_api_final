@@ -415,90 +415,54 @@ class ProductUpdate(SQLModel):
 
     # Core information - all optional for updates
     name: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=100,
-        description="New product name"
+        default=None, min_length=1, max_length=100, description="New product name"
     )
     product_number: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=50,
-        description="New product number"
+        default=None, min_length=1, max_length=50, description="New product number"
     )
-    
+
     # Physical characteristics
     color: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=30,
-        description="New color"
+        default=None, min_length=1, max_length=30, description="New color"
     )
-    size: str | None = Field(
-        default=None,
-        max_length=10,
-        description="New size"
-    )
-    weight: Decimal | None = Field(
-        default=None,
-        gt=0,
-        description="New weight"
-    )
-    
+    size: str | None = Field(default=None, max_length=10, description="New size")
+    weight: Decimal | None = Field(default=None, gt=0, description="New weight")
+
     # Pricing
     standard_cost: Decimal | None = Field(
-        default=None,
-        gt=0,
-        description="New standard cost"
+        default=None, gt=0, description="New standard cost"
     )
-    list_price: Decimal | None = Field(
-        default=None,
-        gt=0,
-        description="New list price"
-    )
-    
+    list_price: Decimal | None = Field(default=None, gt=0, description="New list price")
+
     # Categorization
     product_category_id: int | None = Field(
-        default=None,
-        gt=0,
-        description="New category reference"
+        default=None, gt=0, description="New category reference"
     )
     product_model_id: int | None = Field(
-        default=None,
-        gt=0,
-        description="New model reference"
+        default=None, gt=0, description="New model reference"
     )
-    
+
     # Lifecycle dates
     sell_start_date: datetime | None = Field(
-        default=None,
-        description="New sell start date"
+        default=None, description="New sell start date"
     )
     sell_end_date: datetime | None = Field(
-        default=None,
-        description="New sell end date"
+        default=None, description="New sell end date"
     )
     discontinued_date: datetime | None = Field(
-        default=None,
-        description="New discontinued date"
+        default=None, description="New discontinued date"
     )
-    
+
     # Product image
     thumbnail_photo: bytes | None = Field(
-        default=None,
-        description="New thumbnail image"
+        default=None, description="New thumbnail image"
     )
     thumbnail_photo_file_name: str | None = Field(
-        default=None,
-        max_length=100,
-        description="New thumbnail filename"
+        default=None, max_length=100, description="New thumbnail filename"
     )
-    
+
     # Record management
-    rowguid: str | None = Field(
-        default=None,
-        description="New row GUID"
-    )
+    rowguid: str | None = Field(default=None, description="New row GUID")
 
     @validator("list_price")
     def validate_list_price(cls, v, values):
