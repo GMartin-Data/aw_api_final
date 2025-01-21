@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
-from src.api.models.tables import Product, ProductCreate, ProductRead, ProductUpdate
+from src.api.models.product import Product, ProductCreate, ProductRead, ProductUpdate
 from src.database.session import get_session
 
 

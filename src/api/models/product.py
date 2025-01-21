@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -79,14 +79,15 @@ class ProductCategory(SQLModel, table=True):
     rowguid: str = Field(..., max_length=16, nullable=False)
     modified_date: datetime = Field(..., nullable=False)
 
-    # Self-referential Relationship: sub-categories and parent
-    parent_category: "ProductCategory" | None = Relationship(
-        back_populates="sub_categories",
-        sa_relationship_kwargs={"remote_side": "ProductCategory.product_category_id"},
-    )
-    sub_categories: list["ProductCategory"] = Relationship(
-        back_populates="parent_category"
-    )
+    # # Self-referential Relationship: sub-categories and parent
+    # # ⚠️ Commmented as they cause unsolved issues when API running
+    # parent_category: "ProductCategory" | None = Relationship(
+    #     back_populates="sub_categories",
+    #     sa_relationship_kwargs={"remote_side": "ProductCategory.product_category_id"},
+    # )
+    # sub_categories: list["ProductCategory"] = Relationship(
+    #     back_populates="parent_category"
+    # )
 
     # one-to-many Relationship to Product
     products: list["Product"] = Relationship(back_populates="product_category")
@@ -155,7 +156,7 @@ class ProductBase(SQLModel):
     thumbnail_photo_file_name: str | None = Field(None, max_length=100)
     # Unique identifier, stored as a string but validated as a UUID
     rowguid: str
-
+    
     # Custom validators
     @validator("list_price")
     def validate_list_price(cls, v, values):
@@ -164,36 +165,140 @@ class ProductBase(SQLModel):
         if standard_cost is not None and v < standard_cost:
             raise ValueError("list price must be greater than standard_cost")
         return v
+    
+    @validator("sell_end_date")
+    def validate_sell_end_date(cls, v, values):
+        """
+        If sell_end_date is provide, ensure it's after sell_start_date.
+        """
+        start = values.get("sell_start_date")
+        if v and start and v < start:
+            raise ValueError("sell_end_date must be after sell_start_date")
+        return v
+    
+    @validator("discontinued_date")
+    def validate_discontinued_date(cls, v, values):
+        """
+        If discontinued_date is provided, ensure it's after sell_start_date.
+        """
+        start = values.get("sell_start_date")
+        if v and start and v < start:
+            raise ValueError("discontinued_date must be after sell_start_date")
+        return v
+    
+    @validator("rowguid")
+    def validate_rowguid(cls, v, values):
+        """Check that rowguid is a valid UUID string."""
+        try:
+            UUID(v)  # attempt to parse as a UUID
+        except ValueError:
+            raise ValueError("rowguid must be a valid UUID string")
+        return v    
 
 
-## For CREATING a product with a POST (/products)
-## All fields are required, unless optional in the base
 class ProductCreate(ProductBase):
+    """
+    For POST /products
+    - Same as ProductBase,
+      meaning the client must provide all required fields
+      except anything we handle automatically (like modified_date).
+    """
     pass
 
 
-## For READING a product with a GET (/products or /products/{product_id})
-## Includes 'product_id' and 'modified_date'
-class ProductRead(ProductBase):
+    """
+    For GET responses
+    - Include the DB primary key (product_id)
+    - Also show modified_date if we want to return it.
+    """
     product_id: int
     modified_date: datetime
 
 
-## For UPDATING a product with a PUT (/products/{product_id})
-## Fields are optional, as updates can be partial
+class ProductRead(ProductBase):
+    """
+    For GET responses
+    - Include the DB primary key (product_id)
+    - Also show modified_date in the response.
+    """
+    product_id: int
+    modified_date: datetime
+
+
 class ProductUpdate(SQLModel):
-    name: str | None = None
-    product_number: str | None = None
-    color: str | None = None
-    standard_cost: Decimal | None = None
-    list_price: Decimal | None = None
-    size: str | None = None
-    weight: Decimal | None = None
+    """
+    For PUT /products/{id}
+    - Partial updates are possible
+    - So we make everything optional, with the same validation approach.
+    """
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    product_number: str | None = Field(default=None, min_length=1, max_length=50)
+    color: str | None = Field(default=None, min_length=1, max_length=30)
+    standard_cost: Decimal | None = Field(default=None, gt=0)
+    list_price: Decimal | None = Field(default=None, gt=0)
+    size: str | None = Field(default=None, max_length=10)
+    weight: Decimal | None = Field(default=None, gt=0)
     product_category_id: int | None = None
     product_model_id: int | None = None
     sell_start_date: datetime | None = None
     sell_end_date: datetime | None = None
     discontinued_date: datetime | None = None
     thumbnail_photo: bytes | None = None
-    thumbnail_photo_file_name: str | None = None
+    thumbnail_photo_file_name: str | None = Field(default=None, max_length=100)
     rowguid: str | None = None
+    
+    @validator("list_price")
+    def validate_list_price(cls, v, values):
+        """
+        For partial updates, if standard_cost is also present in the update,
+        ensure list_price >= standard_cost.
+        """
+        if v is None:
+            return v
+        
+        standard_cost = values.get("standard_cost")
+        
+        if standard_cost is not None and v < standard_cost:
+            raise ValueError(
+                "list_price must be greater than or equal to standard cost.")
+        return v
+    
+    @validator("sell_end_date")
+    def validate_sell_end_date(cls, v, values):
+        """
+        For partial updates, if user is sending a sell_end_date,
+        ensure it's after sell_start_date if that was also updated.
+        """
+        if v is None:
+            return v
+
+        start = values.get("sell_start_date")
+        if start is not None and v < start:
+            raise ValueError("sell_end_date must be after sell_start_date")
+        return v
+
+    @validator("discontinued_date")
+    def validate_discontinued_date(cls, v, values):
+        """
+        If discontinued_date is provided, ensure it's after sell_start_date.
+        """
+        if v is None:
+            return v
+
+        start = values.get("sell_start_date")
+        if start is not None and v < start:
+            raise ValueError("discontinued_date must be after sell_start_date")
+        return v
+
+    @validator("rowguid")
+    def validate_rowguid(cls, v):
+        """
+        If user is sending rowguid in an update, ensure it's a valid UUID string.
+        """
+        if v is None:
+            return v
+        try:
+            UUID(v)
+        except ValueError:
+            raise ValueError("rowguid must be a valid UUID string")
+        return v
